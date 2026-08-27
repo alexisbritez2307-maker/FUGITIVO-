@@ -1,0 +1,284 @@
+-- =============================================
+--  AUTO FARM - RUNAWAYS (CON REINICIO Y ESPERA)
+--  Fondo negro expandido + neón morado con brillo pulsante
+--  Teletransporte → Reinicio → Espera 3s → Reconexión
+-- =============================================
+
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local TeleportService = game:GetService("TeleportService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+-- =============================================
+--  1. GUI (FONDO NEGRO EXPANDIDO + NEÓN PULSANTE)
+-- =============================================
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AutoFarmGUI"
+screenGui.Parent = Player:WaitForChild("PlayerGui")
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true  -- Ignorar margen de la barra superior
+
+-- FONDO NEGRO MÁS GRANDE QUE LA PANTALLA (margen de 100px en todos lados)
+local background = Instance.new("Frame")
+background.Size = UDim2.new(1, 200, 1, 200)        -- 200px extra
+background.Position = UDim2.new(0, -100, 0, -100) -- centrado con margen negativo
+background.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+background.BorderSizePixel = 0
+background.Parent = screenGui
+
+-- Capa de gradiente animado (efecto especial)
+local gradientFrame = Instance.new("Frame")
+gradientFrame.Size = UDim2.new(1, 0, 1, 0)
+gradientFrame.Position = UDim2.new(0, 0, 0, 0)
+gradientFrame.BackgroundColor3 = Color3.fromRGB(30, 0, 60)
+gradientFrame.BorderSizePixel = 0
+gradientFrame.Parent = background
+
+local uiGradient = Instance.new("UIGradient")
+uiGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0.00, Color3.fromRGB(120, 0, 255)),
+    ColorSequenceKeypoint.new(0.25, Color3.fromRGB(0, 0, 0)),
+    ColorSequenceKeypoint.new(0.50, Color3.fromRGB(80, 0, 180)),
+    ColorSequenceKeypoint.new(0.75, Color3.fromRGB(0, 0, 0)),
+    ColorSequenceKeypoint.new(1.00, Color3.fromRGB(120, 0, 255)),
+})
+uiGradient.Rotation = 45
+uiGradient.Parent = gradientFrame
+
+-- Fade-in del fondo
+background.BackgroundTransparency = 1
+gradientFrame.BackgroundTransparency = 1
+local fadeIn = TweenService:Create(background, TweenInfo.new(0.8, Enum.EasingStyle.Quad), {
+    BackgroundTransparency = 0
+})
+local fadeInGrad = TweenService:Create(gradientFrame, TweenInfo.new(0.8, Enum.EasingStyle.Quad), {
+    BackgroundTransparency = 0
+})
+fadeIn:Play()
+fadeInGrad:Play()
+
+-- Animación continua del gradiente (rotación)
+local gradientTween = TweenService:Create(uiGradient, TweenInfo.new(8, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, true), {
+    Rotation = 405
+})
+gradientTween:Play()
+
+-- TEXTO NEÓN CON MÚLTIPLES CAPAS Y BRILLO PULSANTE
+local function createNeonText(parent, text, position, size, color, strokeColor, strokeTrans, zIndex)
+    local label = Instance.new("TextLabel")
+    label.Size = size
+    label.Position = position
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = color
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBold
+    label.TextStrokeColor3 = strokeColor
+    label.TextStrokeTransparency = strokeTrans
+    label.ZIndex = zIndex
+    label.Parent = parent
+    return label
+end
+
+-- Capa principal
+local title = createNeonText(background, "AUTO FARM", UDim2.new(0, 0, 0.5, -60), UDim2.new(1, 0, 0, 120), 
+    Color3.fromRGB(255, 255, 255), Color3.fromRGB(200, 0, 255), 0.0, 10)
+
+-- Capas de glow (desplazadas y transparentes)
+local glow1 = createNeonText(background, "AUTO FARM", UDim2.new(0, -3, 0.5, -63), UDim2.new(1, 0, 0, 120), 
+    Color3.fromRGB(255, 100, 255), Color3.fromRGB(255, 0, 255), 0.5, 5)
+glow1.TextTransparency = 0.4
+
+local glow2 = createNeonText(background, "AUTO FARM", UDim2.new(0, 3, 0.5, -63), UDim2.new(1, 0, 0, 120), 
+    Color3.fromRGB(100, 0, 255), Color3.fromRGB(150, 0, 255), 0.5, 5)
+glow2.TextTransparency = 0.4
+
+local glow3 = createNeonText(background, "AUTO FARM", UDim2.new(0, 0, 0.5, -66), UDim2.new(1, 0, 0, 120), 
+    Color3.fromRGB(255, 200, 255), Color3.fromRGB(255, 0, 255), 0.7, 3)
+glow3.TextTransparency = 0.6
+
+local glow4 = createNeonText(background, "AUTO FARM", UDim2.new(0, 0, 0.5, -54), UDim2.new(1, 0, 0, 120), 
+    Color3.fromRGB(200, 0, 255), Color3.fromRGB(255, 0, 255), 0.7, 3)
+glow4.TextTransparency = 0.6
+
+-- Animación de pulso para el brillo del texto
+local pulseConnection
+pulseConnection = RunService.RenderStepped:Connect(function()
+    local t = tick()
+    local pulse = (math.sin(t * 3) + 1) / 2  -- 0 a 1
+
+    title.TextTransparency = 0.1 + pulse * 0.15
+    glow1.TextTransparency = 0.2 + pulse * 0.3
+    glow2.TextTransparency = 0.2 + pulse * 0.3
+    glow3.TextTransparency = 0.4 + pulse * 0.4
+    glow4.TextTransparency = 0.4 + pulse * 0.4
+
+    -- Cambiar ligeramente el color del stroke
+    title.TextStrokeTransparency = 0.1 + pulse * 0.2
+    glow1.TextStrokeTransparency = 0.4 + pulse * 0.3
+    glow2.TextStrokeTransparency = 0.4 + pulse * 0.3
+    glow3.TextStrokeTransparency = 0.6 + pulse * 0.3
+    glow4.TextStrokeTransparency = 0.6 + pulse * 0.3
+end)
+
+-- =============================================
+--  2. FUNCIÓN DE TELETRANSPORTE
+-- =============================================
+
+local function teleportCharacter(targetPosition)
+    local char = Player.Character
+    if not char then
+        print("⏳ Esperando personaje...")
+        Player.CharacterAdded:Wait()
+        char = Player.Character
+        task.wait(0.5)
+    end
+
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then
+        hrp = char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("RootPart")
+        if not hrp then
+            warn("❌ No se encontró parte raíz.")
+            return false
+        end
+    end
+
+    -- CFrame directo
+    pcall(function()
+        hrp.CFrame = CFrame.new(targetPosition)
+    end)
+    task.wait(0.5)
+
+    if (hrp.Position - targetPosition).Magnitude < 5 then
+        print("✅ Teletransporte exitoso.")
+        return true
+    end
+
+    -- MoveTo
+    local humanoid = char:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid:MoveTo(targetPosition)
+        task.wait(0.5)
+        if (hrp.Position - targetPosition).Magnitude < 10 then
+            print("✅ Teletransporte exitoso con MoveTo.")
+            return true
+        end
+    end
+
+    -- BodyPosition
+    local bodyPos = Instance.new("BodyPosition")
+    bodyPos.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+    bodyPos.P = 1e6
+    bodyPos.D = 500
+    bodyPos.Position = targetPosition
+    bodyPos.Parent = hrp
+    task.wait(1)
+    bodyPos:Destroy()
+
+    if (hrp.Position - targetPosition).Magnitude < 10 then
+        print("✅ Teletransporte exitoso con BodyPosition.")
+        return true
+    end
+
+    return false
+end
+
+-- =============================================
+--  3. REINICIAR PERSONAJE (MATAR Y RESPAWNEAR)
+-- =============================================
+
+local function resetCharacter()
+    print("🔄 Reiniciando personaje...")
+    local char = Player.Character
+    if char then
+        local humanoid = char:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.Health = 0
+            print("💀 Personaje muerto. Esperando respawn...")
+            task.wait(2)
+            Player.CharacterAdded:Wait()
+            print("✅ Personaje respawneado.")
+            task.wait(1)
+            return true
+        end
+    end
+    return false
+end
+
+-- =============================================
+--  4. RECONEXIÓN AL JUEGO
+-- =============================================
+
+local function reconnectToGame()
+    local placeId = 118418618261207  -- ID de RUNAWAYS
+
+    print("🔄 Intentando reconectar a RUNAWAYS...")
+
+    -- MÉTODO 1: TeleportService
+    local success, err = pcall(function()
+        TeleportService:Teleport(placeId, Player)
+    end)
+    if success then
+        print("✅ Reconexión exitosa con TeleportService.")
+        return true
+    else
+        print("⚠️ TeleportService falló: " .. tostring(err))
+    end
+
+    -- MÉTODO 2: TeleportToPlaceInstance
+    success, err = pcall(function()
+        TeleportService:TeleportToPlaceInstance(placeId, game.PlaceId, Player)
+    end)
+    if success then
+        print("✅ Reconexión exitosa con TeleportToPlaceInstance.")
+        return true
+    else
+        print("⚠️ TeleportToPlaceInstance falló: " .. tostring(err))
+    end
+
+    print("❌ No se pudo reconectar automáticamente. Deberás unirte manualmente.")
+    return false
+end
+
+-- =============================================
+--  5. FLUJO PRINCIPAL (CON LA ESPERA DE 3s)
+-- =============================================
+
+local function startAutoFarm()
+    print("🚀 Iniciando Auto Farm...")
+
+    -- PASO 1: Teletransportar a coordenadas
+    local targetCoords = Vector3.new(354.564880, 2204.221924, 83581.523438)
+    local success = teleportCharacter(targetCoords)
+
+    if success then
+        print("📍 Personaje en coordenadas:", targetCoords)
+    else
+        print("⚠️ No se pudo teletransportar completamente.")
+    end
+
+    -- PASO 2: Esperar 3 segundos
+    print("⏳ Esperando 3 segundos...")
+    task.wait(3)
+
+    -- PASO 3: Reiniciar personaje (matar y respawn)
+    resetCharacter()
+
+    -- PASO 4: ✅ ESPERAR 3 SEGUNDOS DESPUÉS DEL REINICIO
+    print("⏳ Esperando 3 segundos después del reinicio...")
+    task.wait(3)
+
+    -- PASO 5: Reconectar al juego
+    reconnectToGame()
+end
+
+-- =============================================
+--  6. EJECUTAR
+-- =============================================
+
+task.wait(1.5)
+startAutoFarm()
+
+print("✅ Auto Farm ejecutado. Revisa la consola para seguimiento.")
